@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend/.
+    ports:
+      - 4321:4321
+    depends_on:
+      - backend
+    networks:
+      - my_app_network
+  backend:
+    build: ./backend/.
+    depends_on:
+      - security
+    ports:
+      - 3005:3005
+    networks:
+      - my_app_network
+  security:
+    build: ./security/.
+    ports:
+      - 8000:80
+    networks:
+      - my_app_network
+
+networks:
+  my_app_network:
+    driver: bridge

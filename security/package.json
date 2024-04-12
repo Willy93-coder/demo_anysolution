@@ -1,0 +1,46 @@
+{
+  "name": "oauth2-example-client",
+  "version": "0.1.0",
+  "description": "Oauth2 authentication example for FI-WARE GE applications",
+  "author": "GING DIT UPM",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "eslint . --cache --fix"
+  },
+  "engines": {
+    "node": ">=8.6"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "body-parser": "^1.18.3",
+    "cookie-parser": "~1.4.3",
+    "express": "~4.16.0",
+    "express-session": "^1.15.6",
+    "morgan": "~1.9.0",
+    "node-localstorage": "^3.0.5",
+    "openid-client": "^5.6.5",
+    "request": "^2.88.2"
+  },
+  "devDependencies": {
+    "ajv": "^6.5.2",
+    "eslint": "^5.3.0",
+    "eslint-config-tamia": "^6.0.1",
+    "eslint-plugin-prettier": "^2.6.2",
+    "memfs": "2.9.4",
+    "prettier": "^1.14.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ging/oauth2-example-client"
+  },
+  "contributors": [
+    {
+      "name": "Alvaro Alonso",
+      "email": "aalonsog@dit.upm.es"
+    },
+    {
+      "name": "Javier Cerviño",
+      "email": "jcervino@dit.upm.es"
+    }
+  ]
+}

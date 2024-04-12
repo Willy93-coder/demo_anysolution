@@ -1,0 +1,711 @@
+---
+import LayoutDataDiscover from '../layouts/LayoutDataDiscover.astro';
+
+const resEntities = await fetch('http://www.anysolution.org:1027/v2/entities?limit=1000');
+const entities = await resEntities.json();
+
+const resSubscriptions = await fetch('http://www.anysolution.org:1027/v2/subscriptions/');
+const subscriptions = await resSubscriptions.json();
+
+const notificationWebhookUrl = "192.168.1.74:5050/v2/notify";
+---
+
+<LayoutDataDiscover title="Descubrimiento de datos">
+	<main>
+		<h1>Descubrimiento y visualización de datos</h1>
+		<a class="block mb-2 text-blue-500" href="/">Tratamiento de datos</a>
+		<p class="errormsg"></p>
+		<div class="panel-container">
+			<div class="panel left-panel">
+				<h2 style="text-align: center;">Entidades</h2>
+				<div class="entity-filter-buttons">
+					<button class="filter-button" data-sort-by="entityId">Ordenar por entityId</button>
+					<button class="filter-button" data-sort-by="entityType">Ordenar por entityType</button>
+					<button class="filter-button" id="toggleHideUnhideJsonData">Mostrar/ocultar JSON</button>
+					<!-- Add more buttons for entity table sorting criteria -->
+				</div>
+
+				<!-- INPUTS SEARCH -->
+				<div class="input-group">
+					<input type="text" class="search-input" id="searchInputEntityId" placeholder="Buscar entityId...">
+					<input type="text" class="search-input" id="searchInputEntityType" placeholder="Buscar entityType...">
+				</div>
+
+				<!-- INPUT NOTIFICATION WEBHOOK URL -->
+				<div class="input-group">
+					<span>- Subscription notification webhook URL (Para cuando se crean las suscripciones): </span>
+					<span class="protocol-span">http://</span>
+					<input type="text" class="valueNotificationWebhookUrl" value={notificationWebhookUrl}>
+				</div>
+				<table class="entity-table">
+					<thead>
+						<tr class='even-row'>
+							<th>entityId</th>
+							<th>entityType</th>
+							<th>json data</th> <!-- "agnóstico" -->
+							<!-- Agrega las otras columnas aquí -->
+						</tr>
+					</thead>
+					<tbody>
+					{
+						entities.map((entity) => (
+							<tr>
+								<td>
+									<button class="btnCreateSubscriptionClass" 
+										value={JSON.stringify(entity)}>
+											Crear subscripción
+									</button>
+									<button class="btnDeleteEntityClass" 
+										value={entity.id}>
+											Eliminar entidad
+									</button>
+									{entity.id}
+								</td>
+								<td>{entity.type}</td>
+								<td>{JSON.stringify(entity)}</td> <!-- "agnóstico" -->
+							</tr>
+						)
+					)}
+					</tbody>
+				</table>
+			</div>
+			<div class="panel right-panel">
+				<!-- <button class="subscription-toggleButton">Mostrar suscripciones</button> -->
+				<h2 style="text-align: center;">Suscripciones</h2>
+				<div class="subscription-filter-buttons">
+					<button class="filter-button" data-sort-by="subscriptionId">Ordenar por subscriptionId</button>
+					<button class="filter-button" data-sort-by="description">Ordenar por description</button>
+					<button class="filter-button" data-sort-by="lastNotification">Ordenar por lastNotification</button>
+					<!-- Add more buttons for subscription table sorting criteria -->
+				</div>
+
+				<!-- INPUTS SEARCH -->
+				<div class="input-group">
+					<input type="text" class="search-input" id="searchInputSubsEntityId" placeholder="Buscar entityId...">
+				</div>
+				<table class="subscription-table" style="overflow: hidden;">
+					<thead>
+						<tr class='even-row'>
+							<th>subscriptionID</th>
+							<!-- NOTA: el ID de entidad de parte de suscripciones está oculta -->
+							<th style="display:none">entityId</th>
+							<th>description</th>
+							<th>url</th>
+							<th>lastNotification</th>
+							<!-- <th>status</th> -->
+							<th>timesSent</th>
+							<!-- <th>json data</th> --> <!-- "agnóstico" -->
+							<!-- Agrega las otras columnas aquí -->
+						</tr>
+					</thead>
+					<tbody>
+					{
+						subscriptions.map((subscription) => (
+							<tr>
+								<td>
+									<button class="btnDeleteSubscriptionClass" 
+										value={subscription.id}>
+											Eliminar
+									</button>
+									{subscription.id}
+								</td>
+								<!-- NOTA: el ID de entidad de parte de suscripciones está oculta -->
+								<td style="display:none">{subscription.subject.entities[0].id}</td>
+								<td>{subscription.description}</td>
+								<td>{subscription.notification.http.url}</td>
+								<td>{subscription.notification.lastNotification}</td>
+								<!-- ref. de status "failed": https://fiware-orion.readthedocs.io/en/master/orion-api.html#notification-messages -->
+								<!-- <td>{subscription.status}</td> -->
+								<td>{subscription.notification.timesSent}</td>
+								<!-- <td>{JSON.stringify(subscription)}</td> --> <!-- "agnóstico" -->
+								<!-- Agrega las otras columnas aquí -->
+							</tr>
+						)
+					)}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+</LayoutDataDiscover>
+<script>
+	const BACKEND_PORT = 3005;
+	const backendHostUrl = `http://localhost:${BACKEND_PORT}`;
+	let msgInfo = "hola";
+	const errormsg = document.getElementsByClassName('errormsg')[0];
+	var protocolSpan = document.querySelector('.protocol-span'); // http:// o https://
+
+	/************************************************************************************/
+	/**** INPUTS: BUSCAR ENTIDAD(entityId, entityType), Y EN SUBSCRIPCION(entityId) *****/
+	/************************************************************************************/
+	document.getElementById("searchInputEntityId").addEventListener("input", function() {
+		var filter, table, tr, td, i, txtValue;
+		filter = this.value.toUpperCase();
+		table = document.getElementsByClassName("entity-table")[0];
+		tr = table.getElementsByTagName("tr");
+		for (i = 0; i < tr.length; i++) {
+			td = tr[i].getElementsByTagName("td")[0]; // Assuming entityId is in the first column
+			if (td) {
+				txtValue = td.textContent || td.innerText;
+				tr[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) 
+					? ""
+					: "none";
+			}
+		}
+	});
+	document.getElementById("searchInputEntityType").addEventListener("input", function() {
+		var filter, table, tr, td, i, txtValue;
+		filter = this.value.toUpperCase();
+		table = document.getElementsByClassName("entity-table")[0];
+		tr = table.getElementsByTagName("tr");
+		for (i = 0; i < tr.length; i++) {
+			td = tr[i].getElementsByTagName("td")[1]; // Assuming entityType is in the second column
+			if (td) {
+				txtValue = td.textContent || td.innerText;
+				tr[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) 
+					? ""
+					: "none";
+			}
+		}
+	});
+	document.getElementById("searchInputSubsEntityId").addEventListener("input", function() {
+		var filter, table, tr, td, i, txtValue;
+		filter = this.value.toUpperCase();
+		table = document.getElementsByClassName("subscription-table")[0];
+		tr = table.getElementsByTagName("tr");
+		for (i = 0; i < tr.length; i++) {
+			td = tr[i].getElementsByTagName("td")[1]; // Assuming entityId is in the second column
+			if (td) {
+				txtValue = td.textContent || td.innerText;
+				tr[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) 
+					? ""
+					: "none";
+			}
+		}
+	});
+
+	/**************/
+	/**** SPAN ****/
+	/**************/
+	document.addEventListener('DOMContentLoaded', function() {
+
+        // Initial value
+        let protocol = 'http://';
+        protocolSpan.textContent = protocol;
+
+        // Toggle protocol when clicked
+        protocolSpan.addEventListener('click', function() {
+            protocol = protocol === 'http://' ? 'https://' : 'http://';
+            protocolSpan.textContent = protocol;
+        });
+    });
+
+	/************************************************************/
+	/**** BOTÓN PARA MOSTRAR/OCULTAR ENTIDADES DE DATOS JSON ****/
+	/************************************************************/
+	document.addEventListener("DOMContentLoaded", function() {
+		const toggleButton = document.getElementById('toggleHideUnhideJsonData');
+		const jsonDataHeader = document.querySelector('.entity-table thead th:nth-child(3)');
+		const jsonDataCells = document.querySelectorAll('.entity-table tbody td:nth-child(3)');
+
+		// Hide json data column by default
+		jsonDataHeader.style.display = 'none';
+		jsonDataCells.forEach(cell => {
+			cell.style.display = 'none';
+		});
+
+		// Toggle visibility of json data column and its header
+		toggleButton.addEventListener('click', function() {
+			if (jsonDataHeader.style.display === 'none') {
+				jsonDataCells.forEach(cell => {
+					cell.style.display = '';
+				});
+				jsonDataHeader.style.display = '';
+			} else {
+				jsonDataCells.forEach(cell => {
+					cell.style.display = 'none';
+				});
+				jsonDataHeader.style.display = 'none';
+			}
+		});
+	});
+
+	/*********************************************************/
+	/******** BOTONES PARA FILTROS Y ORDEN DE TABLAS *********/
+	/*********************************************************/
+	const sortingOrders = {};
+	function toggleSortingOrder(sortingCriteria) {
+		if (!sortingOrders[sortingCriteria]) {
+			sortingOrders[sortingCriteria] = 'asc'; // Default sorting order is ascending
+		} else {
+			sortingOrders[sortingCriteria] = sortingOrders[sortingCriteria] === 'asc' ? 'desc' : 'asc'; // Toggle sorting order
+		}
+		return sortingOrders[sortingCriteria]; // Return the current sorting order
+	}
+	function sortTable(tableBody, columnIndex, sortingCriteria) {
+		const rows = Array.from(tableBody.querySelectorAll('tr'));
+		rows.sort((rowA, rowB) => {
+			const cellValueA = rowA.cells[columnIndex].textContent;
+			const cellValueB = rowB.cells[columnIndex].textContent;
+			const sortOrder = sortingOrders[sortingCriteria] === 'asc' ? 1 : -1;
+			return sortOrder * cellValueA.localeCompare(cellValueB);
+		});
+		rows.forEach(row => tableBody.appendChild(row));
+	}
+
+	function updateButtonLabels(sortingCriteria, sortingOrder) {
+		const buttons = document.querySelectorAll(`.filter-button[data-sort-by="${sortingCriteria}"]`);
+		buttons.forEach(button => {
+			button.textContent = `Ordenar por ${button.dataset.sortBy} (${sortingOrder.toUpperCase()})`;
+		});
+	}
+
+	function filterTable(sortingCriteria) {
+		const entityTable = document.querySelector('.entity-table tbody');
+		const subscriptionTable = document.querySelector('.subscription-table tbody');
+
+		let columnIndex;
+		switch (sortingCriteria) {
+			case 'entityId':
+				columnIndex = 0; // Sort by ID column
+				sortTable(entityTable, columnIndex, sortingCriteria);
+				break;
+			case 'subscriptionId':
+				columnIndex = 0; // Sort by ID column
+				sortTable(subscriptionTable, columnIndex, sortingCriteria);
+				break;
+			case 'entityType':
+				columnIndex = 1; // Sort by Type column
+				sortTable(entityTable, columnIndex, sortingCriteria);
+				break;
+			case 'description':
+				columnIndex = 1; // Sort by Description column
+				sortTable(subscriptionTable, columnIndex, sortingCriteria);
+				break;
+			case 'lastNotification':
+				columnIndex = 4; // Sort by Last Modification Date column
+				sortTable(subscriptionTable, columnIndex, sortingCriteria);
+				break;
+			// Add more cases for other sorting criteria as needed
+			default:
+				break;
+		}
+		updateButtonLabels(sortingCriteria, toggleSortingOrder(sortingCriteria));
+	}
+
+	document.addEventListener('DOMContentLoaded', function () {
+		const filterButtons = document.querySelectorAll('.filter-button');
+		filterButtons.forEach(button => {
+			button.addEventListener('click', function () {
+				const sortingCriteria = this.dataset.sortBy;
+				filterTable(sortingCriteria);
+			});
+		});
+	});
+
+	// TODO: Hacer que se actualice y muestre los datos de forma dinámica (que no sea location.reload())
+	// tiene que ser un evento que escuche al servidor para comprobar si hay datos nuevos/modificados/eliminados
+	const dirGetEntities = `get-entities`;
+	const dirGetSubscriptions = `get-subscriptions`;
+	const urlGetEntities = `${backendHostUrl}/${dirGetEntities}`;
+	const urlGetSubscriptions = `${backendHostUrl}/${dirGetSubscriptions}`;
+
+
+	/*********************************************/
+	/************* ELIMINAR ENTIDAD **************/
+	/*********************************************/
+	const dirDeleteEnt = `delete-entity`;
+	const btnDeleteEnt = document.querySelectorAll('.btnDeleteEntityClass');
+	async function deleteEntity(entityId) {
+		const r = await fetch(`${backendHostUrl}/${dirDeleteEnt}`, {
+			method: 'POST',
+			headers: {'Content-Type': 'application/json'},
+			body: JSON.stringify({ "id": entityId }),
+		});
+
+		// console.log(`backendHostUrl: ${backendHostUrl}/${dirDeleteEnt}`);
+		// console.log(`JSON stringify: ${JSON.stringify({ "id": entityId })}`);
+		// console.log(`R STATUS: ${r.status}`);
+
+		if ( !r.ok ) {
+			console.error(`RESPONSE STATUS: ${r.status}`);
+			console.error(`ERROR BACKEND: ${r.text}`);
+			msgInfo = `Ha habido un error al tratar de eliminar la entidad: ${r.text}`;
+			errormsg.innerHTML = msgInfo;
+			throw new Error(`Failed to send info to the backend: ${r.text}`);
+		}
+
+		return r;
+	}
+
+	btnDeleteEnt.forEach( (element) => {
+		element.addEventListener( "click", async (e) => {
+			e.preventDefault();
+			const selectedEntityId = e.target.value;
+			try {
+				console.log(`Starting... SELECTED ENTITYID TO BE DELETED: ${selectedEntityId}`);
+				const res = await deleteEntity(selectedEntityId);
+				
+				if ( res.ok ) {
+					msgInfo = "LA ENTIDAD HA SIDO ELIMINADA!";
+
+					console.log("RESPONSE STATUS: " + res.status);
+					console.log(`${msgInfo}`);
+					
+					location.reload();
+				}
+			}
+			catch (e) {
+				msgInfo = `Ha habido un error al pulsar el botón de eliminar la entidad: ${e}`;
+				errormsg.innerHTML = msgInfo;
+				console.error(`BUTTON DELETE ENTITY CATCH ERROR: ${e}`);
+			}
+		});
+	});
+
+	/***********************************************/
+	/************* CREAR SUBSCRIPCION **************/
+	/***********************************************/
+	const dirCreateSubs = `create-subscription`;
+	// const urlRegex = /^(https?:\/\/)?((([\da-z.-]+)\.([a-z.]{2,6}))|(([0-9]+(?:\.[0-9]+){3})))(?::([0-9]{2,5}))?(\/[\w.-]*)*\/?$/;
+
+	var valueNotificationWebhookUrl = protocolSpan.textContent + document.getElementsByClassName("valueNotificationWebhookUrl")[0].value;
+	const btnCreateSubs = document.querySelectorAll('.btnCreateSubscriptionClass');
+
+	// Escucha el evento input donde se introduce la notificación webhook URL
+	const inputNotificationWebhookUrl = document.querySelector('.valueNotificationWebhookUrl');
+	inputNotificationWebhookUrl.addEventListener('input', (event) => {
+		valueNotificationWebhookUrl = protocolSpan.textContent + event.target.value;
+		// console.log(valueNotificationWebhookUrl);
+	});
+
+	async function createSubscription(entity) {
+		// console.log("valueNotificationWebhookUrl:" + valueNotificationWebhookUrl);
+		const subscriptionPayload = {
+			description: `Notify me of all ${entity.id} status changes`,
+			subject: {
+				entities: [
+					{
+						id: entity.id,
+						type: entity.type
+					}
+				],
+				condition: {
+					attrs: [  ] // no hay nada dentro porque se subscribe a todos los atributos de esa tal entidad
+					// está comprobado de que se actualiza cuando algún atributo cambia su valor
+				}
+			},
+			notification: {
+				http: { url: valueNotificationWebhookUrl, }
+			}
+		};
+		console.log("subscriptionPayload: " + JSON.stringify(subscriptionPayload));
+
+		const res = await fetch(`${backendHostUrl}/${dirCreateSubs}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(subscriptionPayload)
+		});
+
+		if ( !res.ok ) {
+			console.error(`RESPONSE STATUS: ${res.status}`);
+			console.error(`ERROR BACKEND: ${res.text}`);
+			msgInfo = `Ha habido un error al crear la subscripción: ${res.text}`;
+			errormsg.innerHTML = msgInfo;
+			throw new Error(`Failed to send info to the backend: ${res.text}`);
+		}
+			
+		return res;
+	}
+
+	btnCreateSubs.forEach( (element) => {
+		element.addEventListener( "click", async (e) => {
+			e.preventDefault();
+			const selectedEntity = JSON.parse(e.target.value);
+			
+			try {
+				console.log(`Starting... SELECTED ENTITY TO CREATE A NEW SUBSCRIPTION: ${selectedEntity}`);
+				const res = await createSubscription(selectedEntity);
+				if (res == null) return;
+				
+				if ( res.ok ) {
+					msgInfo = "LA SUBSCRIPCIÓN HA SIDO CREADA!";
+					console.log("RESPONSE STATUS: " + res.status);
+					console.log(`${msgInfo}`);
+					
+					location.reload();
+				}
+				
+			}
+			catch (e) {
+				msgInfo = `Ha habido un error al pulsar el botón de crear subscripción: ${e}`;
+				errormsg.innerHTML = msgInfo;
+				console.error(`BUTTON CREATE SUBSCRIPTION CATCH ERROR: ${e}`);
+			}
+		});
+	});
+
+	/**************************************************/
+	/************* ELIMINAR SUBSCRIPCION **************/
+	/**************************************************/
+	const dirDeleteSubs = `delete-subscription`;
+	const btnDeleteSubs = document.querySelectorAll('.btnDeleteSubscriptionClass');
+	async function deleteSubscription(subscriptionId) {
+		const r = await fetch(`${backendHostUrl}/${dirDeleteSubs}`, {
+			method: 'POST',
+			headers: {'Content-Type': 'application/json'},
+			body: JSON.stringify({ "id": subscriptionId }),
+		});
+
+		// console.log(`backendHostUrl: ${backendHostUrl}/${dirDeleteSubs}`);
+		// console.log(`JSON stringify: ${JSON.stringify({ "id": subscriptionId })}`);
+		// console.log(`R STATUS: ${r.status}`);
+
+		if ( !r.ok ) {
+			console.error(`RESPONSE STATUS: ${r.status}`);
+			console.error(`ERROR BACKEND: ${r.text}`);
+			msgInfo = `Ha habido un error al tratar de eliminar la subscripción: ${r.text}`;
+			errormsg.innerHTML = msgInfo;
+			throw new Error(`Failed to send info to the backend: ${r.text}`);
+		}
+
+		return r;
+	}
+
+	btnDeleteSubs.forEach( (element) => {
+		element.addEventListener( "click", async (e) => {
+			e.preventDefault();
+			const selectedSubscriptionId = e.target.value;
+			try {
+				console.log(`Starting... SELECTED SUBSCRIPTIONID TO BE DELETED: ${selectedSubscriptionId}`);
+				const res = await deleteSubscription(selectedSubscriptionId);
+				
+				if ( res.ok ) {
+					msgInfo = "LA SUBSCRIPCIÓN HA SIDO ELIMINADA!";
+
+					console.log("RESPONSE STATUS: " + res.status);
+					console.log(`${msgInfo}`);
+					
+					location.reload();
+				}
+			}
+			catch (e) {
+				msgInfo = `Ha habido un error al pulsar el botón de eliminar la suscripción: ${e}`;
+				errormsg.innerHTML = msgInfo;
+				console.error(`BUTTON DELETE CATCH ERROR: ${e}`);
+			}
+		});
+	});
+
+</script>
+
+<style>
+	@media screen and (max-width: 768px) {
+		.panel {
+			width: 100%; /* Take up full width on smaller screens */
+			height: auto; /* Let content determine height */
+		}
+	}
+	main {
+		margin: auto;
+		padding: 1rem;
+		font-size: 16px;
+		line-height: 1.6;
+	}
+	h1 {
+		font-size: 2rem;
+		font-weight: 700;
+		line-height: 1;
+		text-align: center;
+		margin-bottom: 1em;
+	}
+	.text-gradient {
+		background-image: var(--accent-gradient);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-size: 400%;
+		background-position: 0%;
+	}
+	.errormsg {
+		max-width: calc(100% - 2rem);
+		border: 1px solid rgba(var(--accent-light), 25%);
+		/*
+		background: linear-gradient(rgba(var(--accent-dark), 66%), rgba(var(--accent-dark), 33%));
+		*/
+		color: #ff0000;
+		text-shadow: #4e0000;
+		border-radius: 5px;
+		font-size: 30px;
+		text-align: center;
+	}
+
+/* PANEL DE CADA TABLA */
+	.panel {
+		display: inline-block;
+	}
+	.panel-container {
+		display: flex;
+		justify-content: space-between; /* Center horizontally */
+		align-items: flex-start; /* Align panels to the top */
+	}
+	.left-panel {
+		height: 100%;
+		width: 100%;
+		min-width: 300px;
+		max-width: 700px;
+		background-color: #76dbdf75;
+	}
+	.right-panel {
+		width: 100%;
+		height: 100%;
+		min-width: 200px;
+		max-width: 900px;
+		background-color: #417acf56;
+	}
+
+/* INPUT */
+	.input-group {
+		display: flex;
+		align-items: center;
+	}
+
+	.input-group .protocol-span {
+		padding: 8px;
+		border: 2px solid #007bff; /* Border color */
+		border-radius: 5px; /* Rounded corners */
+		font-size: 16px;
+		color: #007bff; /* Text color */
+		background-color: #f8f9fa; /* Background color */
+		margin-right: 5px; /* Adjust as needed */
+		cursor: pointer; /* Cursor style */
+	}
+
+	.input-group input[type="text"] {
+		padding: 8px;
+		border: 2px solid #ccc; /* Border color */
+		border-radius: 5px; /* Rounded corners */
+		font-size: 16px;
+		width: 300px; /* Adjust width as needed */
+	}
+
+	.input-group input[type="text"]:focus {
+		border-color: #007bff; /* Border color when focused */
+		outline: none; /* Remove outline */
+	}
+
+/* BOTONES */
+	button {
+		display: inline-block;
+		padding: 10px 20px;
+		margin: 5px;
+		border: none;
+		border-radius: 5px;
+		cursor: pointer;
+		font-size: 16px;
+		text-align: center;
+		text-decoration: none;
+		transition: all 0.3s ease;
+	}
+	button:hover {
+        /*box-shadow: 0 0 50px #fbff00;*/
+		background-color: #ff9100b9;
+		color:#0036ac;
+	}
+	.btnDeleteEntityClass {
+		background-color: #f44336;
+	}
+	.btnDeleteSubscriptionClass {
+		background-color: #f44336;
+	}
+	.btnCreateSubscriptionClass {
+		background-color: #008CBA;
+	}
+	.filter-button {
+		background-color: #b3b3b3;
+	}
+
+/* TABLA DE ENTIDADES */
+	.entity-table {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 8px;
+        overflow: hidden;
+		transition: all 0.3s ease;
+    }
+
+    .entity-table th, td {
+        padding: 12px;
+        border-bottom: 1px solid #555;
+        text-align: left;
+    }
+
+    .entity-table th {
+        background-color: #a8a8a8;
+    }
+
+    .entity-table tbody tr:nth-child(even) {
+        background-color: #9c9c9c;
+    }
+    .entity-table tbody tr:nth-child(even):hover {
+        background-color: #74cfac;
+    }
+
+	.entity-table tbody tr:nth-child(odd) {
+		background-color: #c9c9c9;
+	}
+    .entity-table tbody tr:nth-child(odd):hover {
+        background-color: #74cfac;
+    }
+
+	.status_free {
+		text-align: center;
+        color: #00fa00;
+    }
+	.status_occupied {
+		text-align: center;
+        color: #ff0000;
+    }
+
+/* TABLA DE SUBSCRIPCIONES */
+	.subscription-table {
+        width: 100%;
+        border-collapse: collapse;
+        box-shadow: 0 0 20px #0000001a;
+        border-radius: 8px;
+        overflow: hidden;
+		transition: all 0.3s ease;
+    }
+
+    .subscription-table th, td {
+        padding: 12px;
+        border-bottom: 1px solid #727070;
+        text-align: left;
+    }
+
+    .subscription-table th {
+        background-color: #90a4c5;
+    }
+
+/*
+    .subscription-table tbody tr {
+        transition: background-color 0.3s ease;
+    }
+
+    .subscription-table tbody tr:hover {
+        background-color: #0f305a;
+    }
+*/
+
+    .subscription-table tbody tr:nth-child(even) {
+        background-color: #a0c4df;
+    }
+    .subscription-table tbody tr:nth-child(even):hover {
+        background-color: #5cd1cb;
+    }
+    .subscription-table tbody tr:nth-child(odd) {
+        background-color: #c5dbfd;
+    }
+    .subscription-table tbody tr:nth-child(odd):hover {
+        background-color: #5cd1cb;
+    }
+</style>

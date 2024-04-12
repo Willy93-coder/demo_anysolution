@@ -1,0 +1,376 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Dashboard">
+  <main
+    class="grid grid-cols-1 grid-rows-[auto_auto_1fr] justify-items-center h-screen py-4"
+  >
+    <!-- Title -->
+    <h1 class="text-5xl mb-2 mt-4">Tratamiento de datos</h1>
+    <!-- Link -->
+    <a class="block mb-2 text-blue-500" href="/subscriptions/">Suscripciones</a>
+    <!-- Container -->
+    <div class="container flex justify-between pb-8">
+      <!-- Form API container -->
+      <div class="flex flex-col w-4/12">
+        <form class="grid grid-cols-[1fr_auto] gap-2 mb-4">
+          <div class="url_input flex items-center gap-2">
+            <label for="url">URL:</label>
+            <input
+              class="py-2 text-gray-900 w-full bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              type="text"
+              name="url"
+              id="url"
+            />
+          </div>
+          <button
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              id="searchBtn">Buscar</button
+            >
+        </form>
+        <textarea
+          class="block resize-none w-full h-full pl-2 text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+          id="apiInfo"
+          readonly></textarea>
+      </div>
+      <!-- Form create entity -->
+      <div class="form_create_entity">
+        <!-- Type entity -->
+        <form>
+          <div class="type_input flex flex-col content-center mb-4">
+            <label class="mb-1" for="typeEntity">Type:</label>
+            <input
+              class="py-2 px-3 text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              type="text"
+              name="typeEntity"
+              id="typeEntity"
+            />
+          </div>
+          <div id="dynamicFieldsContainer">
+            <!-- Attributes -->
+            <div class="attr_input_container">
+              <!-- Attr input -->
+              <div
+                class="attr_input flex flex-col content-center mb-4"
+                id="attrInputContainer"
+              >
+                <label class="mb-1" for="attrName">Attribute:</label>
+                <input
+                  class="py-2 px-3 text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  type="text"
+                  name="attrName"
+                  id="attrName"
+                />
+              </div>
+              <!-- Attr type -->
+              <div class="attr_type flex flex-col content-center mb-4">
+                <label class="mb-1" for="attrType">Att type:</label>
+                <input
+                  class="py-2 px-3 text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  type="text"
+                  name="attrType"
+                  id="attrType"
+                />
+              </div>
+              <!-- Attr value -->
+              <div class="attr_value flex flex-col content-center mb-4">
+                <label class="mb-1" for="attrValue">Att value:</label>
+                <input
+                  class="py-2 px-3 text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  type="text"
+                  name="attrValue"
+                  id="attrValue"
+                />
+              </div>
+            </div>
+            <!-- Add more attr -->
+            <div class="add_container flex justify-between content-center">
+              <div class="grid items-center">
+                <p>Añadir atributos...</p>
+              </div>
+              <button
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                id="addBtn">+</button
+              >
+            </div>
+          </div>
+        </form>
+      </div>
+      <!-- TextArea NGSI container -->
+      <div class="textarea_ngsi_container flex flex-col w-4/12">
+        <!-- Container buttons -->
+        <div class="buttons_container mb-4 flex justify-around">
+          <button
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            id="generateBtn">Generar entidad</button
+          >
+          <button
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            id="sendBtn">Enviar entidad</button
+          >
+        </div>
+        <!-- TextArea -->
+        <textarea
+          class="block resize-none box-border w-full h-full pl-2 text-gray-900 bg-gray-50 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+          id="taJsonNGSI"
+          readonly></textarea>
+      </div>
+    </div>
+  </main>
+</Layout>
+<script>
+  const URL = "http://localhost:3005/create-entity";
+  const button = document.getElementById("searchBtn");
+  const urlInput = document.getElementById("url");
+  const apiInfo = document.getElementById("apiInfo");
+  const apiResponse = {
+    RESPONSE: null,
+    DATA: null,
+    ERROR: "Error al obtener los datos de la api...",
+  };
+  const addBtn = document.getElementById("addBtn");
+  const typeEntityInput = document.getElementById("typeEntity");
+  const attrName = document.getElementById("attrName");
+  const attrType = document.getElementById("attrType");
+  const attrValue = document.getElementById("attrValue");
+  const generateJsonNGSI = document.getElementById("generateBtn");
+  const sendBtn = document.getElementById("sendBtn");
+  const textareaNGSI = document.getElementById("taJsonNGSI");
+  const form = {
+    ENTITY_TYPE: typeEntityInput,
+    ATTR_NAME: attrName,
+    ATTR_TYPE: attrType,
+    ATTR_VALUE: attrValue,
+  };
+  let jsonNGSIArray = [];
+
+  const fetchData = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      apiResponse.RESPONSE = res.ok;
+      throw new Error("Error al obtener los datos de la api");
+    }
+    apiResponse.RESPONSE = res.ok;
+    return await res.json();
+  };
+
+  const populateTextarea = (info) => {
+    if (!info.RESPONSE) {
+      apiInfo.textContent = info.ERROR;
+      return;
+    }
+    apiInfo.value = JSON.stringify(info.DATA, null, 2);
+  };
+
+  const createJsonNGSI = (form) => {
+    let contador = 1;
+    const jsonNGSI = {
+      id: `${form.ENTITY_TYPE.value}_${contador}`,
+      type: form.ENTITY_TYPE.value,
+    };
+    jsonNGSI[form.ATTR_NAME.value] = {
+      type: form.ATTR_TYPE.value,
+      value: form.ATTR_VALUE.value,
+    };
+    return jsonNGSI;
+  };
+
+  const obtainAttrValue = (json, attr) => {
+    if (
+      json.hasOwnProperty("results") &&
+      Array.isArray(json.results) &&
+      json.results.length > 0
+    ) {
+      const primerResultado = json.results[0];
+      if (primerResultado.hasOwnProperty(attr)) {
+        return primerResultado[attr];
+      } else {
+        console.error(
+          `El atributo "${attr}" no existe en el primer resultado.`
+        );
+        return null;
+      }
+    } else {
+      console.error("El JSON no contiene resultados válidos.");
+      return null;
+    }
+  };
+
+  const obtainAttrValue_2 = (json, attr) => {
+    if (json.hasOwnProperty(attr)) {
+      if (json.hasOwnProperty(attr)) {
+        return json[attr];
+      } else {
+        console.error(
+          `El atributo "${attr}" no existe en el primer resultado.`
+        );
+        return null;
+      }
+    } else {
+      console.error("El JSON no contiene resultados válidos.");
+      return null;
+    }
+  };
+
+  const createJsonNGSI_2 = (form, originalJson) => {
+    const attr = obtainAttrValue(originalJson, form.ATTR_VALUE.value);
+    let jsonNGSI = {};
+    if (attr != null) {
+      let contador = 1;
+      jsonNGSI = {
+        id: `${form.ENTITY_TYPE.value}_${contador}`,
+        type: form.ENTITY_TYPE.value,
+      };
+      jsonNGSI[form.ATTR_NAME.value] = {
+        type: form.ATTR_TYPE.value,
+        value: attr,
+      };
+    }
+    return jsonNGSI;
+  };
+
+  const createJsonNGSI_3 = (form, originalJson) => {
+    const fields = document.querySelectorAll(".attr_input_container");
+
+    let jsonNGSI = {};
+    let contador = 1;
+
+    fields.forEach((fieldSet) => {
+      const attrNameInput = fieldSet.querySelector('[name="attrName"]').value;
+      const attrTypeInput = fieldSet.querySelector('[name="attrType"]').value;
+      const attrValueInput = fieldSet.querySelector('[name="attrValue"]').value;
+      const attrVal = obtainAttrValue(originalJson, attrValueInput);
+      if (attrVal !== null) {
+        const attrJson = {
+          type: attrTypeInput,
+          value: attrVal,
+        };
+
+        jsonNGSI[attrNameInput] = attrJson;
+      } else {
+        console.error(
+          `El atributo "${attrNameInput}" no existe en el JSON original.`
+        );
+      }
+    });
+
+    const entityID = `${form.ENTITY_TYPE.value}_${contador}`;
+    jsonNGSI = {
+      id: entityID,
+      type: form.ENTITY_TYPE.value,
+      ...jsonNGSI,
+    };
+
+    contador++;
+
+    return jsonNGSI;
+  };
+
+  const createJsonNGSI_4 = (form, originalJson) => {
+    jsonNGSIArray = [];
+    let contador = 1;
+    originalJson.results.forEach((result) => {
+      const fields = document.querySelectorAll(".attr_input_container");
+      let jsonNGSI = {};
+      fields.forEach((fieldSet) => {
+        const attrNameInput = fieldSet.querySelector('[name="attrName"]').value;
+        const attrTypeInput = fieldSet.querySelector('[name="attrType"]').value;
+        const attrValueInput =
+          fieldSet.querySelector('[name="attrValue"]').value;
+        const attrVal = obtainAttrValue_2(result, attrValueInput);
+        if (attrVal !== null) {
+          const attrJson = {
+            type: attrTypeInput,
+            value: attrVal,
+          };
+
+          jsonNGSI[attrNameInput] = attrJson;
+        } else {
+          console.error(
+            `El atributo "${attrValueInput}" no existe en el JSON original.`
+          );
+        }
+      });
+      const entityID = `urn:ngsi-ld:${form.ENTITY_TYPE.value}:${contador}`;
+      jsonNGSI = {
+        id: entityID,
+        type: form.ENTITY_TYPE.value,
+        ...jsonNGSI,
+      };
+      contador++;
+
+      jsonNGSIArray.push(jsonNGSI);
+    });
+
+    return jsonNGSIArray;
+  };
+
+  const sendNGSIJson = async (url = "", data = {}) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = new Error("Error al enviar JSON a NGSI");
+      error.stack = res.statusText;
+      throw error;
+    }
+    return res;
+  };
+
+  button.addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      apiResponse.DATA = await fetchData(urlInput.value);
+      if (apiResponse != null) {
+        populateTextarea(apiResponse);
+      }
+    } catch (error) {
+      console.error(error);
+      populateTextarea(apiResponse);
+    }
+  });
+
+  generateJsonNGSI.addEventListener("click", (e) => {
+    e.preventDefault();
+    const json = createJsonNGSI_4(form, apiResponse.DATA);
+    textareaNGSI.value = JSON.stringify(json, null, 2);
+  });
+
+  addBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const dynamicFieldsContainer = document.getElementById(
+      "dynamicFieldsContainer"
+    );
+    const clonedFieldSet =
+      dynamicFieldsContainer.firstElementChild.cloneNode(true);
+
+    const inputs = clonedFieldSet.querySelectorAll("input");
+    inputs.forEach((input) => (input.value = ""));
+
+    const addContainer = document.querySelector(".add_container");
+    addContainer.parentNode.insertBefore(clonedFieldSet, addContainer);
+  });
+
+  sendBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (jsonNGSIArray != null) {
+      for (const entity of jsonNGSIArray) {
+        try {
+          const serverRes = await sendNGSIJson(URL, entity);
+          if (serverRes.status !== 201) {
+            console.error(`No se ha creado la entity con id: ${entity.id}`);
+            continue;
+          }
+          console.log(`Se ha creado la entity con id: ${entity.id}`);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }
+  });
+</script>
